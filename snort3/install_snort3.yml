@@ -1,0 +1,103 @@
+---
+- name: Install Snort 3 Dependencies and Snort 3 itself
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Install essential build tools
+      apt:
+        name: 
+          - build-essential
+          - libpcap-dev
+          - libpcre3-dev
+          - libnet1-dev
+          - zlib1g-dev
+          - luajit
+          - hwloc
+          - libdnet-dev
+          - libdumbnet-dev
+          - bison
+          - flex
+          - liblzma-dev
+          - openssl
+          - libssl-dev
+          - pkg-config
+          - libhwloc-dev
+          - cmake
+          - cpputest
+          - libsqlite3-dev
+          - uuid-dev
+          - libcmocka-dev
+          - libnetfilter-queue-dev
+          - libmnl-dev
+          - autotools-dev
+          - libluajit-5.1-dev
+          - libunwind-dev
+          - libfl-dev
+          - ethtool
+          - libjemalloc-dev
+          - git
+          - autoconf
+          - libtool
+          - unzip
+        state: present
+      become: yes
+
+    - name: Create directory for Snort source
+      file:
+        path: /root/snort_src
+        state: directory
+      become: yes
+
+    - name: Clone libdaq repository
+      git:
+        repo: https://github.com/snort3/libdaq.git
+        dest: /root/snort_src/libdaq
+        force: yes
+      become: yes
+
+    - name: Build and install libdaq
+      shell: |
+        cd /root/snort_src/libdaq
+        ./bootstrap && ./configure && make && make install
+      become: yes
+
+    - name: Download gperftools source
+      get_url:
+        url: https://github.com/gperftools/gperftools/releases/download/gperftools-2.9.1/gperftools-2.9.1.tar.gz
+        dest: /root/snort_src/gperftools-2.9.1.tar.gz
+      become: yes
+
+    - name: Extract gperftools source
+      unarchive:
+        src: /root/snort_src/gperftools-2.9.1.tar.gz
+        dest: /root/snort_src/
+        remote_src: yes
+      become: yes
+
+    - name: Build and install gperftools
+      shell: |
+        cd /root/snort_src/gperftools-2.9.1/
+        ./configure && make && make install
+      become: yes
+
+    - name: Download Snort 3 source
+      get_url:
+        url: https://github.com/snort3/snort3/archive/refs/heads/master.zip
+        dest: /root/snort_src/master.zip
+      become: yes
+
+    - name: Extract Snort 3 source
+      unarchive:
+        src: /root/snort_src/master.zip
+        dest: /root/snort_src/
+        remote_src: yes
+      become: yes
+
+    - name: Configure and build Snort 3
+      shell: |
+        cd /root/snort_src/snort3-master
+        ./configure_cmake.sh --prefix=/usr/local --enable-tcmalloc
+        cd build
+        make && make install && ldconfig
+      become: yes

@@ -1,0 +1,54 @@
+---
+- name: Set up Snort 3 NIC
+  hosts: localhost
+  become: yes
+  tasks:
+    - name: Set NIC in promiscuous mode
+      command: ip link set dev ens33 promisc on
+
+    - name: Check receive-offload settings
+      command: ethtool -k ens33 | grep receive-offload
+      register: ethtool_result
+
+    - name: Add configuration to snort3-nic.service
+      blockinfile:
+        path: /etc/systemd/system/snort3-nic.service
+        block: |
+          [Unit]
+          Description=Set Snort 3 NIC in promiscuous mode and Disable GRO, LRO on boot
+          After=network.target
+          
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/sbin/ip link set dev ens33 promisc on
+          ExecStart=/usr/sbin/ethtool -K ens33 gro off lro off
+          TimeoutStartSec=0
+          RemainAfterExit=yes
+          
+          [Install]
+          WantedBy=default.target
+      notify: Reload systemd
+
+  handlers:
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+- name: Enable and start snort3-nic.service
+  hosts: localhost
+  become: yes
+  tasks:
+    - name: Enable and start snort3-nic.service
+      service:
+        name: snort3-nic
+        enabled: yes
+        state: started
+
+- name: Check status of snort3-nic.service
+  hosts: localhost
+  become: yes
+  tasks:
+    - name: Check status of snort3-nic.service
+      service:
+        name: snort3-nic
+        state: started
